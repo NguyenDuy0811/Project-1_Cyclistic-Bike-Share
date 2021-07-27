@@ -1,0 +1,205 @@
+---
+title: "BIKE TRIPS"
+author: "Nguyen Duy"
+date: "7/24/2021"
+output: html_document
+    
+---  
+
+This analysis is based on case study 1 in the **Google Analytics Certificate**. The purpose of this activity is to consolidate download datasets on divvy-tripdata follow this [link]("https://divvy-tripdata.s3.amazonaws.com/index.html"), after that, I clean data and conduct some simple data   analysis.  
+
+## Contents  
+##### I. Set up environment  
+##### II. Import data  
+##### III. Check the data  
+##### IV. Clean and prepare data  
+##### V. Conduct analysis  
+##### VI. Export data for further analysis  
+
+### GO!  
+
+##### I. Set up environment  
+Before using **read.csv()** we need to install some required packages. If you download those packages before, you should use this code chunk fisrt:  
+```{r for someone dowloaded the package}
+chooseCRANmirror(graphics=FALSE, ind=1)
+knitr::opts_chunk$set(echo = TRUE)
+```
+If you don't install the packages yet, you can run the below directly.  
+```{r setup environment}
+library(tidyverse) # for data import and wrangling
+library(lubridate) # for handling with datetype 
+library(knitr) 
+library(ggplot2)   # ggplot for visualizations 
+library(skimr)     # deeply understanding dataset
+library(janitor)   # for removing emty rows and cols
+library(here)
+library(scales)    # change scale in chart axis
+library(dplyr)
+#if you want to creat a map with R, you can run the code chunk below (remove #)  
+  
+#install.packages("ggmap")    #map for visualizing with Chicago map
+#library(ggmap)
+#install.packages("maps")
+#library(maps)
+#install.packages("ggthemes") #to create a map of bike trips
+#library(ggthemes)
+#install.packages("scales")   # scales to set the labels from scientific value to numeric
+#install.packages("geosphere")
+#library(geosphere) 
+```
+
+#### II. Import data  
+If you got problem with directory, please run this code:  
+```{r setup, include=FALSE, echo=FALSE}
+#require("knitr")
+#opts_knit$set(root.dir = "C:\\Users\\ADMIN\\Documents\\data1")
+```
+Then run this  
+
+Here is the data of earliest 12 months from *July 2020 to May 2021*  
+```{r import data}
+#setwd("C:\\Users\\ADMIN\\Documents\\data1")
+df007 <- read.csv("./data1/202007-divvy-tripdata.csv")
+df008 <- read.csv("./data1/202008-divvy-tripdata.csv")
+df009 <- read.csv("./data1/202009-divvy-tripdata.csv")
+df010 <- read.csv("./data1/202010-divvy-tripdata.csv")
+df011 <- read.csv("./data1/202011-divvy-tripdata.csv")
+df012 <- read.csv("./data1/202012-divvy-tripdata.csv")
+df101 <- read.csv("./data1/202101-divvy-tripdata.csv")
+df102 <- read.csv("./data1/202102-divvy-tripdata.csv")
+df103 <- read.csv("./data1/202103-divvy-tripdata.csv")
+df104 <- read.csv("./data1/202104-divvy-tripdata.csv")
+df105 <- read.csv("./data1/202105-divvy-tripdata.csv")
+df106 <- read.csv("./data1/202106-divvy-tripdata.csv")
+```
+
+#### III. Check the data  
+
+We must make sure that the data of different files perfectly fit together before  and we can combine it into a single large dataset  
+```{r check cols name}
+colnames(df007)
+#colnames(df008)
+#colnames(df009)
+#colnames(df010)
+#colnames(df011)
+#colnames(df012)
+#colnames(df101)
+#colnames(df102)
+#colnames(df103)
+#colnames(df104)
+#colnames(df105)
+#colnames(df106)
+```
+OK! perfect fit, all 12 datasets have the same cols, now let's see how's the real data inside them look like:  
+```{r }
+str
+str(df007)
+#str(df008) 
+#str(df009) 
+#str(df010) 
+#str(df011) 
+#str(df012) 
+#str(df101) 
+#str(df102) 
+#str(df103) 
+#str(df104) 
+#str(df105) 
+#str(df106)
+```
+Oh! they are quite good and fit, so we can combine them into a single dataset right now! After that, we remove empty rows and cols  
+```{r combine data}
+bike_rides <- rbind(df007,df008,df009,df010,df011,df012,df101,df102,df103,df104,df105,df106)
+dim(bike_rides) #check number of rows before remove empty
+bike_rides <- janitor:: remove_empty(bike_rides, which = c("cols"))
+bike_rides <- janitor:: remove_empty(bike_rides, which = c("rows"))
+dim(bike_rides) #check number of rows after remove empty
+```
+Look at the new dataset one more time!  
+```{r check data again}
+# take a glance at the data
+glimpse(bike_rides)
+skim_without_charts(bike_rides)
+#str(bike_rides)
+#head(bike_rides)
+#colnames(bike_rides)
+```
+After taking a look at the data, you can see that some of the columns were formatted in the wrong way, so we must change the format of data before taking analysis, for example: **started_at, ended_at (chr)** we need to format the data to the right datatype.    
+```{r reformat cols}
+bike_rides$started_at <- lubridate:: ymd_hms(bike_rides$started_at)
+bike_rides$ended_at <- lubridate:: ymd_hms(bike_rides$ended_at)
+```
+At this point, the data was formatted in the right datatype, but the name of columns were named not intuitive, you can consider renaming cols by using  **rename(table, new_col_name=old_col_name,...)**, but I will change the name after this analysis by using **MS Power BI**  
+
+#### IV. Clean and prepare data  
+In the 2019 dataset, we need to change the variables of the member_casual column but fortunately we don't need to do that in the 2020 dataset and later, but we can we can do that by using this code chunk:  
+``` {r}
+#bike_rides <-  bike_rides %>%   
+           #  mutate(member_casual = recode(member_casual,"Subscriber" = "member",
+            #                               ,"Customer" = "casual"))
+```
+We can detect the hour value in the **started_at** col to determine what is the mode time people rent for a bike.  
+```{r create new cols}
+bike_rides$started_hour <- lubridate:: hour(bike_rides$started_at)
+bike_rides$ended_hour <- lubridate:: hour(bike_rides$ended_at)
+bike_rides$total_time_rent <- difftime(bike_rides$ended_at,bike_rides$started_at, units = "mins")
+# Convert "total_time_rent" from Factor to numeric so we can run calculations on the data
+is.factor(bike_rides$total_time_rent)
+class(bike_rides$total_time_rent)
+bike_rides$total_time_rent <- as.numeric(as.character(bike_rides$total_time_rent))
+is.numeric(bike_rides$total_time_rent)
+```
+Now it's time to remove some bad data, total time rent should be greater than 0 so we need to remove it, and **start_station name "HQ QR"** is a nonsense name so we need to remove it too.  
+```{r remove bad data}
+bike_rides_v2 <- bike_rides[!(bike_rides$start_station_name == "HQ QR" | bike_rides$total_time_rent<0),]
+```
+If you want to calculate the distance between two locations base on latitude and longitude, please run the code below (remove #)  
+```{r calcualte geospatial distance}
+#bike_rides$ride_length <- bike_rides %>%  
+       #distHaversine(cbind(start_lng, start_lat),
+                                #cbind(lag(end_lng), lag(end_lat)))
+```
+The data seem to be ready for analysis! let's go!  
+
+#### V. Conduct analysis  
+I really want to show you the map of Chicago and where the bike trips were, but my device not strong enough to run all the code, so if your device has RAM >=8G, I highly recommend you run the code chunk below:  
+``` {r create a map}
+#chicago_map <- get_stamenmap(bbox = c(left = -88.5,bottom= 41.5,right= -87, 
+#               top = 42 ), zoom = 10, maptype = "terrain")
+#ggmap(chicago_map)+
+#  geom_point(data = bike_rides, aes(x= start_lng, y = start_lat), size = .3)+
+# theme_map()
+#ggsave("chicago_map.png)
+```
+Now, I will create a visualization to demonstrate the mode hour of day people take a bike trip.  
+```{r create a viz}
+# What is the time customers usually rent for bikes (start_hour)?
+
+bike_rides %>% count(started_hour, sort = T) %>% 
+  ggplot() +
+  geom_line(aes(x= started_hour, y = n))+
+  scale_y_continuous(labels = comma)+
+  labs(title = "The number of bike rides by hour", y= "number of rides", x = "Hour",
+    subtitle = "data of 12 months recently", caption = "powrered by amazonaws")+
+  annotate("rect", xmin = 8, xmax = 20, ymin = 0, ymax = 450000, 
+           alpha = 0.1, color = "blue", fill = "pink")+
+  annotate("segment", x = 3, xend = 7, y = 380000, yend = 300000, color = "black", alpha = 0.6, arrow = arrow())+
+  annotate("text", x = 4, y = 400000, label = "Customers usualy ride from 8am to 8pm", size = 4, color = "black")
+
+# Customers usually rent bikes in the time frame from 8 am to 8 pm
+#ggsave("rides_by_hour.png)
+```
+Compare members and casual users:  
+```{r aggregate bikerides by customer type}
+#aggregate(bike_rides_v2$total_time_rent ~ bike_rides_v2$member_casual, FUN = mean)
+#aggregate(bike_rides_v2$total_time_rent ~ bike_rides_v2$member_casual, FUN = median)
+aggregate(bike_rides_v2$total_time_rent ~ bike_rides_v2$member_casual, FUN = max)
+aggregate(bike_rides_v2$total_time_rent ~ bike_rides_v2$member_casual, FUN = min)
+```
+Ok, that's it for today, I will conduct more analysis and vizs in Power BI dashboard and SQL, hope to have you back.  
+ 
+#### VI. Export data to further analysis  
+Now, it's time to export our data into a csv file in a specified folder, remember to save the vizs and map too!  
+```{r export data}
+#write.csv(bike_rides, "C:\\Users\\ADMIN\\Documents\\data1\\bike_rides_v2.csv")
+```
+## Thank you for reading  
